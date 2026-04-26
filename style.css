@@ -1,0 +1,181 @@
+:root {
+  --bg-color: #0a192f;
+  --card-bg: #112240;
+  --text-primary: #e6f1ff;
+  --text-secondary: #8892b0;
+  --accent: #64ffda;
+  --danger: #ff6b6b;
+  --border-radius: 12px;
+}
+* {
+  box-sizing: border-box;
+  transition: 0.3s;
+}
+body {
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+h1 {
+  color: var(--accent);
+  margin-bottom: 5px;
+}
+.input-group {
+  background-color: var(--card-bg);
+  padding: 20px;
+  border-radius: var(--border-radius);
+  width: 100%;
+  max-width: 500px;
+  margin-bottom: 10px;
+}
+/* تنسيق موحد لكل مدخلات النص */
+input {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: white;
+    font-size: 16px; /* تحسين الحجم للموبايل */
+}
+
+/* تنسيق خاص للـ Select لتبدو أجمل */
+select {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    background-color: #1e293b; /* لون خلفية أغمق قليلاً للتمييز */
+    border: 1px solid var(--accent); /* إطار بلون التميز */
+    border-radius: 8px;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    appearance: none; /* إزالة شكل السهم الافتراضي للنظام */
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2364ffda%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: left 10px top 50%;
+    background-size: 12px auto;
+}
+.btn-main {
+  width: 100%;
+  padding: 12px;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #0a192f;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 10px;
+}
+.btn-secondary {
+  background: #334155;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 5px;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 500px;
+  margin-bottom: 20px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  background: var(--card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+}
+.tab-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.word-card {
+  background: var(--card-bg);
+  padding: 18px;
+  margin-bottom: 15px;
+  border-radius: var(--border-radius);
+  border-right: 4px solid transparent;
+  width: 100%;
+  max-width: 500px;
+}
+.word-card.hard {
+  border-right-color: var(--danger);
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.card-actions {
+  display: flex;
+  gap: 5px;
+  margin-top: 10px;
+}
+.action-btn {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+#testArea {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 25, 47, 0.95);
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.test-container {
+  background: var(--card-bg);
+  padding: 30px;
+  border-radius: 20px;
+  text-align: center;
+  width: 100%;
+  max-width: 400px;
+}
+.option-btn {
+  width: 100%;
+  padding: 12px;
+  margin: 5px 0;
+  background: #233554;
+  border: 1px solid var(--accent);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.scramble-word {
+  display: inline-block;
+  padding: 10px 20px;
+  margin: 5px;
+  background: var(--accent);
+  color: var(--bg-color);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}

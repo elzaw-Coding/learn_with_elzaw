@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="icon.png" type="image/png">
+    <title>Elzaw || Learnly Pro</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>Elzaw Learnly Pro</h1>
+    
+    <div class="input-group">
+        <select id="voiceSelect"></select>
+        <input type="text" id="term" placeholder="الكلمة أو الجملة...">
+        <button class="btn-secondary" onclick="app.autoTranslate()">ترجمة تلقائية 🤖</button>
+        <input type="text" id="trans" placeholder="الترجمة (المعنى)...">
+        <button class="btn-main" onclick="app.addEntry()">إضافة للقاموس</button>
+    </div>
+
+    <div style="display: flex; gap: 10px; width: 100%; max-width: 500px; margin-bottom: 20px;">
+        <button class="btn-secondary" style="background:#475569; flex:1;" onclick="app.exportData()">📤 تصدير البيانات</button>
+        <button class="btn-secondary" style="background:#475569; flex:1;" onclick="document.getElementById('fileInput').click()">📥 استيراد البيانات</button>
+        <input type="file" id="fileInput" style="display:none" onchange="app.importData(event)">
+    </div>
+
+    <div class="tabs">
+        <div class="tab-btn active" id="tabDaily" onclick="app.switchTab('daily')">الحصيلة</div>
+        <div class="tab-btn" id="tabHard" onclick="app.switchTab('hard')">الصعبة</div>
+    </div>
+
+    <div id="displayArea" style="width:100%; max-width:500px;"></div>
+
+    <div id="testArea">
+        <div class="test-container" id="testBox"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
