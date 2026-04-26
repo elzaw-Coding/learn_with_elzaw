@@ -3,104 +3,150 @@ const app = {
     testList: [],
     currentIndex: 0,
     currentTab: 'daily',
-    testType: 'write', 
-    userScramble: [],
+    testType: 'write',
+    selectedVoice: null,
+    selectedWords: [],
+    availableWords: [],
+
+    showToast: (msg, isSuccess) => {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        toast.className = `toast ${isSuccess ? 'success' : 'error'}`;
+        toast.style.display = 'block';
+        setTimeout(() => toast.style.display = 'none', 2000);
+    },
 
     init: () => {
         app.render();
-        const loadVoices = () => {
-            const select = document.getElementById('voiceSelect');
+        const setupVoice = () => {
             const voices = window.speechSynthesis.getVoices();
-            select.innerHTML = voices.map((v, i) => `<option value="${i}">${v.name} (${v.lang})</option>`).join('');
+            app.selectedVoice = voices.find(v => v.name.includes('Google') || v.name.includes('Neural')) || voices[0];
         };
-        window.speechSynthesis.onvoiceschanged = loadVoices;
-        loadVoices();
-    },
-
-    exportData: () => {
-        if(app.data.length === 0) return alert('لا توجد بيانات لتصديرها!');
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(app.data));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", "my_vocabulary.json");
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
-    },
-
-    importData: (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const importedData = JSON.parse(e.target.result);
-                app.data = importedData;
-                localStorage.setItem('learnly_data', JSON.stringify(app.data));
-                app.render();
-                alert('تم استيراد البيانات بنجاح!');
-            } catch (err) {
-                alert('خطأ في استيراد الملف! تأكد أنه ملف صحيح.');
-            }
-        };
-        reader.readAsText(file);
-    },
-
-    autoTranslate: async () => {
-        const term = document.getElementById('term').value;
-        if(!term) return alert('اكتب الكلمة أولاً!');
-        try {
-            const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(term)}&langpair=en|ar`);
-            const data = await res.json();
-            document.getElementById('trans').value = data.responseData.translatedText;
-        } catch(e) { alert('فشل الاتصال بالترجمة'); }
+        window.speechSynthesis.onvoiceschanged = setupVoice;
+        setupVoice();
     },
 
     speak: (text) => {
-        const voiceIdx = document.getElementById('voiceSelect').value;
-        const voices = window.speechSynthesis.getVoices();
         const msg = new SpeechSynthesisUtterance(text);
-        if (voices[voiceIdx]) msg.voice = voices[voiceIdx];
+        if (app.selectedVoice) msg.voice = app.selectedVoice;
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(msg);
     },
 
     addEntry: () => {
-        const term = document.getElementById('term').value;
-        const trans = document.getElementById('trans').value;
-        if(!term || !trans) return alert('أكمل البيانات');
+        const term = document.getElementById('term').value.trim();
+        const trans = document.getElementById('trans').value.trim();
         
-        app.data.push({ 
-            id: Date.now(), 
-            term: term.trim(), 
-            trans: trans.trim(), 
-            date: new Date().toLocaleDateString(), 
-            isHard: false, 
-            isSentence: term.includes(' ') 
-        });
+        if(!term || !trans) return app.showToast('أكمل البيانات', false);
+        
+        if (app.data.some(x => x.term.toLowerCase() === term.toLowerCase())) {
+            return app.showToast('الكلمة موجودة بالفعل!', false);
+        }
 
+        app.data.push({ id: Date.now(), term, trans, date: new Date().toLocaleDateString(), isHard: false, isSentence: term.includes(' ') });
         localStorage.setItem('learnly_data', JSON.stringify(app.data));
         document.getElementById('term').value = '';
         document.getElementById('trans').value = '';
         app.render();
+        app.showToast('تم الإضافة!', true);
     },
 
-    switchTab: (tab) => {
-        app.currentTab = tab;
-        document.getElementById('tabDaily').classList.toggle('active', tab === 'daily');
-        document.getElementById('tabHard').classList.toggle('active', tab === 'hard');
-        app.render();
+    autoTranslate: async () => {
+        const term = document.getElementById('term').value.trim();
+        if(!term) return app.showToast('اكتب الكلمة أولاً!', false);
+        
+        try {
+            const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(term)}&langpair=en|ar`);
+            const data = await res.json();
+            if (data.responseData.translatedText === term) {
+                 app.showToast('لم أجد ترجمة، تحقق من الإملاء!', false);
+            } else {
+                document.getElementById('trans').value = data.responseData.translatedText;
+            }
+        } catch(e) { app.showToast('فشل الاتصال!', false); }
+    },
+
+    startTest: (type, mode, date) => {
+        app.testType = type;
+        let source = (mode === 'daily') ? app.data.filter(x => x.date === date) : app.data.filter(x => x.isHard);
+        app.testList = (type === 'scramble') ? source.filter(x => x.isSentence) : source;
+        if(app.testList.length === 0) return app.showToast('لا يوجد عناصر!', false);
+        
+        app.currentIndex = 0;
+        document.getElementById('testArea').style.display = 'flex';
+        app.showQuestion();
+    },
+
+    showQuestion: () => {
+        const item = app.testList[app.currentIndex];
+        const area = document.getElementById('testBox');
+        
+        if(app.testType === 'write') {
+            area.innerHTML = `<h2 style="color:var(--accent)">${item.trans}</h2><input type="text" id="aInput" placeholder="اكتب...">
+            <button class="btn-main" onclick="app.checkAnswer('')">تحقق</button><button style="background:none; border:none; color:white; margin-top:15px;" onclick="app.closeTest()">خروج</button>`;
+        } else if(app.testType === 'mcq') {
+            const options = [...app.data.filter(x => x.trans !== item.trans).sort(() => 0.5 - Math.random()).slice(0, 3).map(x => x.trans), item.trans].sort(() => 0.5 - Math.random());
+            area.innerHTML = `<h2 style="color:var(--accent)">${item.term}</h2><div id="optionsArea"></div><button style="background:none; border:none; color:white; margin-top:15px;" onclick="app.closeTest()">خروج</button>`;
+            options.forEach(opt => { const btn = document.createElement('button'); btn.className = 'option-btn'; btn.innerText = opt; btn.onclick = () => app.checkAnswer(opt); document.getElementById('optionsArea').appendChild(btn); });
+        } else {
+            app.availableWords = item.term.split(' ').sort(() => 0.5 - Math.random());
+            app.selectedWords = [];
+            app.renderScrambleUI(item.term);
+        }
+        app.speak(item.term);
+    },
+
+renderScrambleUI: (original) => {
+        const area = document.getElementById('testBox');
+        area.innerHTML = `<h2 style="color:var(--accent)">رتب الجملة:</h2>
+        <div id="displayScramble" style="min-height:50px; background:#1e293b; padding:10px; margin-bottom:10px; border-radius:8px; display:flex; flex-wrap:wrap; flex-direction:row-reverse; justify-content:flex-start; gap:5px;"></div>
+        <div id="poolArea"></div>
+        <button class="btn-main" onclick="app.checkScramble('${original}')">تحقق</button>
+        <button style="background:none; border:none; color:white; margin-top:10px;" onclick="app.closeTest()">خروج</button>`;
+        
+        const display = document.getElementById('displayScramble');
+        const pool = document.getElementById('poolArea');
+
+        // الكلمات التي اخترتها (تظهر في الأعلى)
+        app.selectedWords.forEach(w => {
+            const btn = document.createElement('span'); btn.className = 'scramble-word'; btn.innerText = w;
+            btn.onclick = () => { app.availableWords.push(w); app.selectedWords = app.selectedWords.filter(x => x !== w); app.renderScrambleUI(original); };
+            display.appendChild(btn);
+        });
+
+        // الكلمات المتاحة (تظهر في الأسفل)
+        app.availableWords.forEach(w => {
+            const btn = document.createElement('span'); btn.className = 'scramble-word'; btn.style.background = '#334155'; btn.innerText = w;
+            btn.onclick = () => { app.selectedWords.push(w); app.availableWords = app.availableWords.filter(x => x !== w); app.renderScrambleUI(original); };
+            pool.appendChild(btn);
+        });
+    },
+
+    checkScramble: (original) => {
+        if(app.selectedWords.join(' ') === original) { 
+            app.currentIndex++; 
+            if(app.currentIndex < app.testList.length) app.showQuestion(); 
+            else { app.showToast('أحسنت!', true); app.closeTest(); }
+        } else { app.showToast('خطأ، حاول مجدداً', false); }
+    },
+
+    checkAnswer: (selected) => {
+        const item = app.testList[app.currentIndex];
+        const isCorrect = (app.testType === 'write') ? (document.getElementById('aInput').value.trim().toLowerCase() === item.term.trim().toLowerCase()) : (selected === item.trans);
+        if(isCorrect) {
+            app.currentIndex++;
+            if(app.currentIndex < app.testList.length) app.showQuestion();
+            else { app.showToast('أحسنت!', true); app.closeTest(); }
+        } else { app.showToast('خطأ! حاول مجدداً', false); }
     },
 
     render: () => {
         const area = document.getElementById('displayArea');
         area.innerHTML = '';
-        const filteredData = (app.currentTab === 'daily') ? app.data : app.data.filter(x => x.isHard);
-
         if (app.currentTab === 'daily') {
             const grouped = app.data.reduce((acc, curr) => { acc[curr.date] = acc[curr.date] || []; acc[curr.date].push(curr); return acc; }, {});
             Object.keys(grouped).forEach((date, i) => {
-                area.innerHTML += `<h3 style="color:var(--accent); margin-top:20px;">Day ${i+1}</h3>
+                area.innerHTML += `<h3 style="color:var(--accent); margin-top:20px;">اليوم ${i+1}</h3>
                 <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
                     <button class="action-btn" style="border:none; background:#334155" onclick="app.startTest('write', 'daily', '${date}')">كتابة</button>
                     <button class="action-btn" style="border:none; background:#334155" onclick="app.startTest('mcq', 'daily', '${date}')">اختيار</button>
@@ -114,7 +160,7 @@ const app = {
                 <button class="action-btn" onclick="app.startTest('mcq', 'hard')">اختيار</button>
                 <button class="action-btn" onclick="app.startTest('scramble', 'hard')">ترتيب</button>
             </div>`;
-            filteredData.forEach(item => area.innerHTML += app.createCard(item));
+            app.data.filter(x => x.isHard).forEach(item => area.innerHTML += app.createCard(item));
         }
     },
 
@@ -141,79 +187,39 @@ const app = {
         app.render();
     },
 
-    startTest: (type, mode, date) => {
-        app.testType = type;
-        let source = (mode === 'daily') ? app.data.filter(x => x.date === date) : app.data.filter(x => x.isHard);
-        
-        if(type === 'scramble') {
-            app.testList = source.filter(x => x.isSentence);
-            if(app.testList.length === 0) return alert('لا توجد جمل لهذا الاختبار!');
-        } else {
-            app.testList = source;
-        }
-
-        if(app.testList.length === 0) return alert('لا توجد عناصر لهذا الاختبار!');
-        app.currentIndex = 0;
-        document.getElementById('testArea').style.display = 'flex';
-        app.showQuestion();
+    closeTest: () => { document.getElementById('testArea').style.display = 'none'; app.render(); },
+    
+    exportData: () => {
+        if(app.data.length === 0) return app.showToast('لا توجد بيانات!', false);
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(app.data));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "my_vocabulary.json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
     },
 
-    showQuestion: () => {
-        const item = app.testList[app.currentIndex];
-        const area = document.getElementById('testBox');
-        
-        if(app.testType === 'write') {
-            area.innerHTML = `<h2 style="color:var(--accent)">${item.trans}</h2>
-                <input type="text" id="aInput" placeholder="اكتب الكلمة...">
-                <button class="btn-main" onclick="app.checkAnswer('')">تحقق</button>
-                <button style="background:none; border:none; color:white; margin-top:15px;" onclick="app.closeTest()">خروج</button>`;
-            app.speak(item.term);
-        } else if(app.testType === 'mcq') {
-            const correct = item.trans;
-            const options = [...app.data.filter(x => x.trans !== correct).sort(() => 0.5 - Math.random()).slice(0, 3).map(x => x.trans), correct].sort(() => 0.5 - Math.random());
-            area.innerHTML = `<h2 style="color:var(--accent)">${item.term}</h2>
-                <div id="optionsArea"></div><button style="background:none; border:none; color:white; margin-top:15px;" onclick="app.closeTest()">خروج</button>`;
-            options.forEach(opt => {
-                const btn = document.createElement('button'); btn.className = 'option-btn'; btn.innerText = opt;
-                btn.onclick = () => app.checkAnswer(opt);
-                document.getElementById('optionsArea').appendChild(btn);
-            });
-            app.speak(item.term);
-        } else if(app.testType === 'scramble') {
-            app.userScramble = [];
-            const words = item.term.split(' ').sort(() => 0.5 - Math.random());
-            area.innerHTML = `<h2 style="color:var(--accent)">رتب الجملة:</h2>
-                <div id="displayScramble" style="min-height:50px; background:#1e293b; padding:10px; margin-bottom:10px; border-radius:8px"></div>
-                <div id="optionsArea"></div>
-                <button class="btn-main" onclick="app.checkScramble('${item.term}')">تحقق</button>
-                <button style="background:none; border:none; color:white; margin-top:10px;" onclick="app.closeTest()">خروج</button>`;
-            words.forEach(w => {
-                const btn = document.createElement('span'); btn.className = 'scramble-word'; btn.innerText = w;
-                btn.onclick = () => { app.userScramble.push(w); document.getElementById('displayScramble').innerText = app.userScramble.join(' '); btn.style.display='none'; };
-                document.getElementById('optionsArea').appendChild(btn);
-            });
-            app.speak(item.term);
-        }
+    importData: (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                app.data = JSON.parse(e.target.result);
+                localStorage.setItem('learnly_data', JSON.stringify(app.data));
+                app.render();
+                app.showToast('تم الاستيراد بنجاح!', true);
+            } catch (err) { app.showToast('خطأ في الملف!', false); }
+        };
+        reader.readAsText(file);
     },
 
-    checkAnswer: (selected) => {
-        const item = app.testList[app.currentIndex];
-        const inputVal = (app.testType === 'write') ? document.getElementById('aInput').value.trim().toLowerCase() : selected.trim().toLowerCase();
-        const targetVal = item.term.trim().toLowerCase();
-        const isCorrect = (app.testType === 'write') ? (inputVal === targetVal) : (selected === item.trans);
-
-        if(isCorrect) {
-            app.currentIndex++;
-            if(app.currentIndex < app.testList.length) app.showQuestion();
-            else { alert('أحسنت! انتهى الاختبار.'); app.closeTest(); }
-        } else { alert('خطأ! حاول مجدداً'); }
-    },
-
-    checkScramble: (original) => {
-        if(app.userScramble.join(' ') === original) { alert('صح!'); app.currentIndex++; if(app.currentIndex < app.testList.length) app.showQuestion(); else app.closeTest(); }
-        else { alert('خطأ! حاول مرة أخرى'); app.userScramble = []; document.getElementById('displayScramble').innerText = ''; app.showQuestion(); }
-    },
-
-    closeTest: () => { document.getElementById('testArea').style.display = 'none'; app.render(); }
+    switchTab: (tab) => {
+        app.currentTab = tab;
+        document.getElementById('tabDaily').classList.toggle('active', tab === 'daily');
+        document.getElementById('tabHard').classList.toggle('active', tab === 'hard');
+        app.render();
+    }
 };
 app.init();
