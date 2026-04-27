@@ -51,12 +51,9 @@ const app = {
     const rawTerm = document.getElementById("term").value.trim();
     const term = rawTerm.replace(/\s+/g, " ");
     const trans = document.getElementById("trans").value.trim();
-
     if (!term || !trans) return app.showToast("أكمل البيانات", false);
-    if (app.data.some((x) => x.term.toLowerCase() === term.toLowerCase())) {
-      return app.showToast("الكلمة موجودة بالفعل!", false);
-    }
 
+    // التحقق من أن الجملة تحتوي على مسافات لتعتبر جملة
     app.data.push({
       id: Date.now(),
       term,
@@ -74,17 +71,13 @@ const app = {
 
   autoTranslate: async () => {
     const term = document.getElementById("term").value.trim();
-    if (!term) return app.showToast("اكتب الكلمة أولاً!", false);
+    if (!term) return;
     try {
       const res = await fetch(
         `https://api.mymemory.translated.net/get?q=${encodeURIComponent(term)}&langpair=en|ar`,
       );
       const data = await res.json();
-      if (data.responseData.translatedText === term)
-        app.showToast("لم أجد ترجمة، تحقق من الإملاء!", false);
-      else
-        document.getElementById("trans").value =
-          data.responseData.translatedText;
+      document.getElementById("trans").value = data.responseData.translatedText;
     } catch (e) {
       app.showToast("فشل الاتصال!", false);
     }
@@ -96,10 +89,15 @@ const app = {
       mode === "daily"
         ? app.data.filter((x) => x.date === date)
         : app.data.filter((x) => x.isHard);
-    app.testList =
-      type === "scramble" ? source.filter((x) => x.isSentence) : source;
+
+    if (type === "scramble") {
+      app.testList = source.filter((x) => x.isSentence);
+    } else {
+      app.testList = source.filter((x) => !x.isSentence);
+    }
+
     if (app.testList.length === 0)
-      return app.showToast("لا يوجد عناصر!", false);
+      return app.showToast("لا توجد عناصر لهذا النوع!", false);
 
     app.score = 0;
     app.totalQuestions = app.testList.length;
@@ -149,8 +147,8 @@ const app = {
     const area = document.getElementById("testBox");
     area.innerHTML = `<button class="action-btn" style="background:#334155; margin-bottom:10px;" onclick="app.speak('${original}')">🔊 سماع</button>
         <h2 style="color:var(--accent)">رتب الجملة:</h2>
-        <div id="displayScramble" style="min-height:50px; background:#1e293b; padding:10px; margin-bottom:10px; border-radius:8px; display:flex; flex-wrap:wrap; flex-direction:row-reverse; justify-content:flex-start; gap:5px;"></div>
-        <div id="poolArea"></div>
+        <div id="displayScramble" style="min-height:60px; background:#1e293b; padding:10px; margin-bottom:10px; border-radius:8px; display:flex; flex-wrap:wrap; flex-direction:row-reverse; justify-content:flex-start; gap:5px;"></div>
+        <div id="poolArea" style="display:flex; flex-wrap:wrap; gap:5px; justify-content:center;"></div>
         <button class="btn-main" onclick="app.checkScramble('${original}')">تحقق</button>
         <button style="background:none; border:none; color:white; margin-top:10px;" onclick="app.closeTest()">خروج</button>`;
 
@@ -239,13 +237,16 @@ const app = {
         const cleanDate = date.replace(/\//g, "-");
         area.innerHTML += `
                 <div style="background:#112240; padding:10px; margin:10px 0; border-radius:8px; cursor:pointer" onclick="app.toggleDate('${date}')">
-                    <h3 style="color:var(--accent); margin:0;">اليوم ${i + 1} (${date}) 🔽</h3>
+                    <h3 style="color:var(--accent); margin:0; display:flex; justify-content:space-between;">
+                        Day ${i + 1} (${date}) 
+                        <span id="icon-${cleanDate}">🔽</span>
+                    </h3>
                 </div>
                 <div id="list-${cleanDate}" style="display:none">
                     <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px; margin-bottom:10px;">
-                        <button class="action-btn" style="border:none; background:#334155" onclick="app.startTest('write', 'daily', '${date}')">كتابة</button>
-                        <button class="action-btn" style="border:none; background:#334155" onclick="app.startTest('mcq', 'daily', '${date}')">اختيار</button>
-                        <button class="action-btn" style="border:none; background:#334155" onclick="app.startTest('scramble', 'daily', '${date}')">ترتيب</button>
+                        <button class="action-btn" onclick="app.startTest('write', 'daily', '${date}')">كتابة</button>
+                        <button class="action-btn" onclick="app.startTest('mcq', 'daily', '${date}')">اختيار</button>
+                        <button class="action-btn" onclick="app.startTest('scramble', 'daily', '${date}')">ترتيب</button>
                     </div>
                     ${grouped[date].map((item) => app.createCard(item)).join("")}
                 </div>`;
@@ -262,6 +263,17 @@ const app = {
     }
   },
 
+  toggleDate: (date) => {
+    const cleanDate = date.replace(/\//g, "-");
+    const list = document.getElementById(`list-${cleanDate}`);
+    const icon = document.getElementById(`icon-${cleanDate}`);
+    if (list) {
+      const isHidden = list.style.display === "none";
+      list.style.display = isHidden ? "block" : "none";
+      icon.innerText = isHidden ? "🔼" : "🔽";
+    }
+  },
+
   createCard: (item) => `
         <div class="word-card ${item.isHard ? "hard" : ""}">
             <div class="card-header"><strong>${item.term}</strong><span style="color:var(--text-secondary)">${item.trans}</span></div>
@@ -271,31 +283,21 @@ const app = {
                 <button class="action-btn" style="border-color:var(--danger); color:var(--danger)" onclick="app.delete(${item.id})">🗑️</button>
             </div>
         </div>`,
-
-  toggleDate: (date) => {
-    const list = document.getElementById(`list-${date.replace(/\//g, "-")}`);
-    if (list)
-      list.style.display = list.style.display === "none" ? "block" : "none";
-  },
-
   toggleHard: (id) => {
     const item = app.data.find((x) => x.id === id);
     item.isHard = !item.isHard;
     localStorage.setItem("learnly_data", JSON.stringify(app.data));
     app.render();
   },
-
   delete: (id) => {
     app.data = app.data.filter((x) => x.id !== id);
     localStorage.setItem("learnly_data", JSON.stringify(app.data));
     app.render();
   },
-
   closeTest: () => {
     document.getElementById("testArea").style.display = "none";
     app.render();
   },
-
   exportData: () => {
     const dataStr =
       "data:text/json;charset=utf-8," +
@@ -307,7 +309,6 @@ const app = {
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
   },
-
   importData: (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -324,7 +325,6 @@ const app = {
     };
     reader.readAsText(file);
   },
-
   switchTab: (tab) => {
     app.currentTab = tab;
     document
