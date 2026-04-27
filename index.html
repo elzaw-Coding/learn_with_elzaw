@@ -13,8 +13,7 @@
     
     <div class="input-group">
         <div id="toast" class="toast"></div>
-        <input type="text" id="term" placeholder="الكلمة أو الجملة...">
-        <button class="btn-secondary" onclick="app.autoTranslate()">ترجمة تلقائية 🤖</button>
+<input type="text" id="term" onblur="app.autoTranslate()" placeholder="أدخل الكلمة هنا">        <button class="btn-secondary" onclick="app.autoTranslate()">ترجمة تلقائية 🤖</button>
         <input type="text" id="trans" placeholder="الترجمة (المعنى)...">
         <button class="btn-main" onclick="app.addEntry()">إضافة للقاموس</button>
     </div>

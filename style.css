@@ -34,7 +34,6 @@ h1 {
   max-width: 500px;
   margin-bottom: 10px;
 }
-/* تنسيق موحد لكل مدخلات النص */
 input {
     width: 100%;
     padding: 12px;
@@ -43,11 +42,9 @@ input {
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     color: white;
-    font-size: 16px; /* تحسين الحجم للموبايل */
+    font-size: 16px; 
 }
 
-/* تنسيق خاص للـ Select لتبدو أجمل */
-/* تنسيق التنبيهات الطافية */
 .toast {
     position: fixed;
     bottom: 20px;
