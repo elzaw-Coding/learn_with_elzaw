@@ -12,18 +12,56 @@ const app = {
   totalQuestions: 0,
   failedQuestions: new Set(),
 
-  init: () => {
+init: () => {
     app.render();
-    const setupVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      app.selectedVoice =
-        voices.find(
-          (v) => v.name.includes("Google") || v.name.includes("Neural"),
-        ) || voices[0];
+
+    const loadVoices = () => {
+        let voices = window.speechSynthesis.getVoices();
+        if (voices.length === 0) return;
+
+        const priorityVoices = [
+            'Microsoft Aria Online', 
+            'Google US English',
+            'Neural',
+            'Natural',
+            'en-US'
+        ];
+
+        let foundVoice = null;
+        for (let name of priorityVoices) {
+            foundVoice = voices.find(v => v.name.includes(name) || v.lang === name);
+            if (foundVoice) break;
+        }
+
+        app.selectedVoice = foundVoice || voices[0];
+        console.log("الصوت المعتمد الآن:", app.selectedVoice.name);
+        
+        if (app.selectedVoice && voices.length > 0) {
+            clearInterval(voiceRetry);
+        }
     };
-    window.speechSynthesis.onvoiceschanged = setupVoice;
-    setupVoice();
-  },
+
+    const voiceRetry = setInterval(loadVoices, 100);
+    
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+},
+speak: (text) => {
+        if (app.currentAudio) {
+            app.currentAudio.pause();
+        }
+
+        const googleTTS = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=en&client=tw-ob`;
+
+        app.currentAudio = new Audio(googleTTS);
+        
+        app.currentAudio.playbackRate = 0.9;
+        
+        app.currentAudio.play().catch(e => {
+            console.error("فشل تشغيل الصوت الطبيعي، جاري العودة للصوت الافتراضي...");
+            const fallback = new SpeechSynthesisUtterance(text);
+            window.speechSynthesis.speak(fallback);
+        });
+    },
 
   showToast: (msg, isSuccess) => {
     const toast = document.getElementById("toast");
@@ -33,12 +71,6 @@ const app = {
     setTimeout(() => (toast.style.display = "none"), 2000);
   },
 
-  speak: (text) => {
-    const msg = new SpeechSynthesisUtterance(text);
-    if (app.selectedVoice) msg.voice = app.selectedVoice;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(msg);
-  },
 
   addEntry: () => {
     const term = document
@@ -325,11 +357,25 @@ const app = {
     localStorage.setItem("learnly_data", JSON.stringify(app.data));
     app.render();
   },
-  delete: (id) => {
-    app.data = app.data.filter((x) => x.id !== id);
-    localStorage.setItem("learnly_data", JSON.stringify(app.data));
-    app.render();
-  },
+delete: (id) => {
+        const modal = document.getElementById('confirmModal');
+        const confirmBtn = document.getElementById('confirmBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+
+        modal.style.display = 'flex';
+
+        confirmBtn.onclick = () => {
+            app.data = app.data.filter(x => x.id !== id);
+            localStorage.setItem('learnly_data', JSON.stringify(app.data));
+            app.render();
+            modal.style.display = 'none'; 
+            app.showToast('تم الحذف بنجاح', true);
+        };
+
+        cancelBtn.onclick = () => {
+            modal.style.display = 'none'; 
+        };
+    },
   closeTest: () => {
     document.getElementById("testArea").style.display = "none";
     app.render();
